@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 
 #Data pre-processing
 state = {0: 'NSW', 1: 'QLD', 2: 'SA', 3: 'TAS', 4: 'VIC'}
-#year = {0: '2015', 1: '2016', 2: '2017'}
-year = {0: '2017'}
+year = {0: '2015', 1: '2016', 2: '2017'}
+#year = {0: '2017'}
 
 df_nsw = pd.DataFrame()
 df_qld = pd.DataFrame()
@@ -39,21 +39,17 @@ for st in state.values():
     df_test[st] = df_test[st].append(dataset.iloc[:,1:3])
     df_test[st] = df_test[st].set_index('SETTLEMENTDATE')
 
-plt.figure(1)
-plt.subplot(211)
+
 plt.plot(df['NSW'].iloc[:,0].values)
-plt.figure(2)
-plt.subplot(211)
+plt.show()
 plt.plot(df['QLD'].iloc[:,0].values)
-plt.figure(3)
-plt.subplot(211)
+plt.show()
 plt.plot(df['SA'].iloc[:,0].values)
-plt.figure(4)
-plt.subplot(211)
+plt.show()
 plt.plot(df['TAS'].iloc[:,0].values)
-plt.figure(5)
-plt.subplot(211)
+plt.show()
 plt.plot(df['VIC'].iloc[:,0].values)
+plt.show()
 
 
 TS_NSW = np.array(df['NSW'])
@@ -172,8 +168,8 @@ for st in state.values():
 for st in state.values():
     print("Mape for ", st, " = ", mean_absolute_percentage_error(y_batches_test[st],y_pred[st]), end = '\n')    
     plt.title("Forecast vs Actual", fontsize=14)
-    plt.plot(pd.Series(np.ravel(y_batches_test[st])), "bo", markersize=10, label="Actual")
-    plt.plot(pd.Series(np.ravel(y_pred[st])), "r.", markersize=10, label="Forecast")
+    plt.plot(pd.Series(np.ravel(y_batches_test[st])), "b.", markersize=2, label="Actual")
+    plt.plot(pd.Series(np.ravel(y_pred[st])), "r.", markersize=2, label="Forecast")
     plt.legend(loc="upper left")
     plt.xlabel("Time Periods")
     plt.show()
