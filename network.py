@@ -119,25 +119,28 @@ class Network(intelligence.sw):
                 y = train_y[j*mini_batch_size:(j+1)*mini_batch_size]
                 self.update_mini_batch(X, y, mini_batch_size, eta, lmbda, train_y.shape[0])
                                
-            print("Epochs {0}".format(i))
+            if i % 100 == 0:
+                print("Epochs {0}".format(i))
             if monitor_training_cost:
                 cost = self.total_cost(train_x, train_y, lmbda)
                 training_cost.append(cost)
-                print("Cost on training data: {1}".format(i, cost))
+                if i % 100 == 0:
+                    print("Cost on training data: {1}".format(i, cost))
             if monitor_training_accuracy:
                 accuracy = self.accuracy(train_x, train_y)
                 training_accuracy.append(accuracy)
-                print("Accuracy on training data: {0}/{1}".format(accuracy, 
-                      n_train))
+                if i % 100 == 0:
+                    print("MAPE on training data: {0}".format(accuracy))
             if monitor_evaluation_cost:
                 cost = self.total_cost(evaluation_x, evaluation_y, lmbda)
                 evaluation_cost.append(cost)
-                print("Cost on evaluation data: {1}".format(i, cost))
+                if i % 100 == 0:
+                    print("Cost on evaluation data: {1}".format(i, cost))
             if monitor_evaluation_accuracy:
                 accuracy = self.accuracy(evaluation_x, evaluation_y)
                 evaluation_accuracy.append(accuracy)
-                print("Accuracy on evaluation data: {0}/{1}".format(accuracy, 
-                      n_eval)) 
+                if i % 100 == 0:
+                    print("MAPE on evaluation data: {0}".format(accuracy)) 
         return evaluation_cost, evaluation_accuracy, training_cost, training_accuracy
     
     def update_mini_batch(self, X, y, mini_batch_size, eta, lmbda, n):
