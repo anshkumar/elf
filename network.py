@@ -7,7 +7,7 @@ Created on Sun Feb 25 15:16:25 2018
 
 import numpy as np
 #from PyEMD import EEMD
-from math import gamma, pi, sin
+from math import gamma, pi, sin, sqrt
 from random import normalvariate, randint, random
 
 import intelligence
@@ -29,6 +29,7 @@ class QuadraticCost(object):
 class CrossEntropyCost(object):
     @staticmethod
     def fn(a, y):
+        a[a == 0] = 1e-10
         return np.sum(np.nan_to_num(-y*np.log(a) - (1-y)*np.log(1-a)))
     
     @staticmethod
@@ -98,8 +99,7 @@ class Network(intelligence.sw):
             rIt += x
             self.biases.append(a[lIt:rIt].reshape((x,1)))
             lIt = rIt
-        
-        
+           
     def SGD(self, train_x, train_y, epochs, mini_batch_size, eta,
             evaluation_x = None, evaluation_y = None, lmbda = 0.0,
             monitor_evaluation_cost = False,
@@ -223,11 +223,20 @@ class Network(intelligence.sw):
     Cuckoo Search Optimization
     """
     
-    def objectiveFunction(self,x):
+#    def objectiveFunction(self,x):
+#        self.set_weight_bias(x)
+#        y_prime = self.feedforward(self.input)
+#        return sum(abs(u-v) for u,v in zip(y_prime, self.output))/x.shape[0]
+
+    def multiObjectiveFunction(self,x):
         self.set_weight_bias(x)
         y_prime = self.feedforward(self.input)
-        return sum(abs(u-v) for u,v in zip(y_prime, self.output))/x.shape[0]
-
+        ob1 = sum(abs(u-v) for u,v in zip(y_prime, self.output))/x.shape[0]
+        ob2 = sqrt(sum((u-v)**2 for u,v in zip(y_prime, self.output))/x.shape[0])
+        ob3 = sum(abs((u-v)/v) for u,v in zip(y_prime, self.output))/x.shape[0]
+        ob4 = sqrt(sum((abs((u-v)/v) - ob3)**2 for u,v in zip(y_prime, self.output))/x.shape[0])
+        return min([ob1,ob2,ob3,ob4])
+    
     def cso(self, n, x, y, function, lb, ub, dimension, iteration, pa=0.25,
                  nest=100):
         """

@@ -68,7 +68,7 @@ def plot_test_accuracy(test_accuracy, num_epochs, test_accuracy_xmin):
     ax.set_xlim([test_accuracy_xmin, num_epochs])
     ax.grid(True)
     ax.set_xlabel('Epoch')
-    ax.set_title('Accuracy (%) on the test data')
+    ax.set_title('Error on the test data')
     plt.show()
 
 def plot_test_cost(test_cost, num_epochs, test_cost_xmin):
@@ -94,7 +94,7 @@ def plot_training_accuracy(training_accuracy, num_epochs,
     ax.set_xlim([training_accuracy_xmin, num_epochs])
     ax.grid(True)
     ax.set_xlabel('Epoch')
-    ax.set_title('Accuracy (%) on the training data')
+    ax.set_title('Error on the training data')
     plt.show()
 
 def plot_overlay(test_accuracy, training_accuracy, num_epochs, xmin,
@@ -104,16 +104,16 @@ def plot_overlay(test_accuracy, training_accuracy, num_epochs, xmin,
     ax.plot(np.arange(xmin, num_epochs), 
             [accuracy/100.0 for accuracy in test_accuracy], 
             color='#2A6EA6',
-            label="Accuracy on the test data")
+            label="Error on the test data")
     ax.plot(np.arange(xmin, num_epochs), 
             [accuracy*100.0/training_set_size 
              for accuracy in training_accuracy], 
             color='#FFA933',
-            label="Accuracy on the training data")
+            label="Error on the training data")
     ax.grid(True)
     ax.set_xlim([xmin, num_epochs])
     ax.set_xlabel('Epoch')
-#    ax.set_ylim([90, 100])
+    ax.set_ylim([0, 10])
     plt.legend(loc="lower right")
     plt.show()
 
@@ -151,54 +151,14 @@ if __name__ == "__main__":
         dataset = pd.read_csv('./datasets/test/' + st + '/PRICE_AND_DEMAND_201801_' + st + '1.csv')
         df_test[st] = df_test[st].append(dataset.iloc[:,1:3])
         df_test[st] = df_test[st].set_index('SETTLEMENTDATE')
-    
-#    plt.plot(df['NSW'].iloc[:,0].values)
-#    plt.show()
-#    plt.plot(df['QLD'].iloc[:,0].values)
-#    plt.show()
-#    plt.plot(df['SA'].iloc[:,0].values)
-#    plt.show()
-#    plt.plot(df['TAS'].iloc[:,0].values)
-#    plt.show()
-#    plt.plot(df['VIC'].iloc[:,0].values)
-#    plt.show()
-    
-#    df['NSW'].iloc[:,0] = nt.estimated_autocorrelation(df['NSW'].iloc[:,0].values)
-#    df['QLD'].iloc[:,0] = nt.estimated_autocorrelation(df['QLD'].iloc[:,0].values)
-#    df['SA'].iloc[:,0] = nt.estimated_autocorrelation(df['SA'].iloc[:,0].values)
-#    df['TAS'].iloc[:,0] = nt.estimated_autocorrelation(df['TAS'].iloc[:,0].values)
-#    df['VIC'].iloc[:,0] = nt.estimated_autocorrelation(df['VIC'].iloc[:,0].values)
-#    
-#    df_test['NSW'].iloc[:,0] = nt.estimated_autocorrelation(df_test['NSW'].iloc[:,0].values)
-#    df_test['QLD'].iloc[:,0] = nt.estimated_autocorrelation(df_test['QLD'].iloc[:,0].values)
-#    df_test['SA'].iloc[:,0] = nt.estimated_autocorrelation(df_test['SA'].iloc[:,0].values)
-#    df_test['TAS'].iloc[:,0] = nt.estimated_autocorrelation(df_test['TAS'].iloc[:,0].values)
-#    df_test['VIC'].iloc[:,0] = nt.estimated_autocorrelation(df_test['VIC'].iloc[:,0].values)
-    
-#    plt.plot(df['NSW'].iloc[:,0].values)
-#    plt.show()
-#    plt.plot(df['QLD'].iloc[:,0].values)
-#    plt.show()
-#    plt.plot(df['SA'].iloc[:,0].values)
-#    plt.show()
-#    plt.plot(df['TAS'].iloc[:,0].values)
-#    plt.show()
-#    plt.plot(df['VIC'].iloc[:,0].values)
-#    plt.show()
-    
+       
     # numpy array
     list_hourly_load_NSW = df['NSW'].iloc[:,0].values
     list_hourly_load_QLD = df['QLD'].iloc[:,0].values
     list_hourly_load_SA = df['SA'].iloc[:,0].values
     list_hourly_load_TAS = df['TAS'].iloc[:,0].values
     list_hourly_load_VIC = df['VIC'].iloc[:,0].values
-    
-#    list_hourly_load_NSW_test = df_test['NSW'].iloc[:,0].values
-#    list_hourly_load_QLD_test = df_test['QLD'].iloc[:,0].values
-#    list_hourly_load_SA_test = df_test['SA'].iloc[:,0].values
-#    list_hourly_load_TAS_test = df_test['TAS'].iloc[:,0].values
-#    list_hourly_load_VIC_test = df_test['VIC'].iloc[:,0].values
-    
+       
     min_max_scaler = preprocessing.MinMaxScaler()
     
     list_hourly_load_NSW = min_max_scaler.fit_transform(list_hourly_load_NSW.reshape(-1, 1))
@@ -206,13 +166,7 @@ if __name__ == "__main__":
     list_hourly_load_SA = min_max_scaler.fit_transform(list_hourly_load_SA.reshape(-1, 1))
     list_hourly_load_TAS = min_max_scaler.fit_transform(list_hourly_load_TAS.reshape(-1, 1))
     list_hourly_load_VIC = min_max_scaler.fit_transform(list_hourly_load_VIC.reshape(-1, 1))
-
-#    list_hourly_load_NSW_test = min_max_scaler.fit_transform(list_hourly_load_NSW_test)
-#    list_hourly_load_QLD_test = min_max_scaler.fit_transform(list_hourly_load_QLD_test)
-#    list_hourly_load_SA_test = min_max_scaler.fit_transform(list_hourly_load_SA_test)
-#    list_hourly_load_TAS_test = min_max_scaler.fit_transform(list_hourly_load_TAS_test)
-#    list_hourly_load_VIC_test = min_max_scaler.fit_transform(list_hourly_load_VIC_test)
-    
+   
     # the length of the sequnce for predicting the future value
     sequence_length = 47
     
@@ -229,13 +183,7 @@ if __name__ == "__main__":
     matrix_load_SA = np.array(matrix_load_SA)
     matrix_load_TAS = np.array(matrix_load_TAS)
     matrix_load_VIC = np.array(matrix_load_VIC)
-
-#    y_test_NSW = np.array(list_hourly_load_NSW_test)
-#    y_test_QLD = np.array(list_hourly_load_QLD_test)
-#    y_test_SA = np.array(list_hourly_load_SA_test)
-#    y_test_TAS = np.array(list_hourly_load_TAS_test)
-#    y_test_VIC = np.array(list_hourly_load_VIC_test)
-    
+   
     # shuffle the training set (but do not shuffle the test set)
     np.random.shuffle(matrix_load_NSW)
     np.random.shuffle(matrix_load_QLD)
@@ -277,14 +225,14 @@ if __name__ == "__main__":
     training_accuracy_list_NSW = []
     
     print("NSW:")
+    i = 1
     for train_index, test_index in tscv.split(X_NSW):
-        i = 1
         X_train_NSW, X_test_NSW = X_NSW[train_index], X_NSW[test_index]
         y_train_NSW, y_test_NSW = y_NSW[train_index], y_NSW[test_index]
         
-        net_NSW = nt.Network([46,10,1], nt.Activation.sigmoid, nt.QuadraticCost)
+        net_NSW = nt.Network([46,10,1], nt.Activation.relu, nt.QuadraticCost)
         dim = sum(w.size + b.size for w,b in zip(net_NSW.weights,net_NSW.biases))
-        net_NSW.cso(100,X_train_NSW[0].reshape(46,1),y_train_NSW[0].reshape(1,1),net_NSW.objectiveFunction,-0.6,0.6,dim ,500)
+        net_NSW.cso(100,X_train_NSW[0].reshape(46,1),y_train_NSW[0].reshape(1,1),net_NSW.multiObjectiveFunction,-0.6,0.6,dim ,500)
         net_NSW.set_weight_bias(np.array(net_NSW.get_Gbest()))
         
         fname = "results_NSW_" + str(i)
@@ -321,15 +269,15 @@ if __name__ == "__main__":
     training_cost_list_QLD = []
     training_accuracy_list_QLD = [] 
     
+    i = 1
     print("QLD:")
     for train_index, test_index in tscv.split(X_QLD):
-        i = 1
         X_train_QLD, X_test_QLD = X_QLD[train_index], X_QLD[test_index]
         y_train_QLD, y_test_QLD = y_QLD[train_index], y_QLD[test_index]
         
-        net_QLD = nt.Network([46,10,1], nt.Activation.sigmoid, nt.QuadraticCost)
+        net_QLD = nt.Network([46,10,1], nt.Activation.relu, nt.QuadraticCost)
         dim = sum(w.size + b.size for w,b in zip(net_QLD.weights,net_QLD.biases))
-        net_QLD.cso(100,X_train_QLD[0].reshape(46,1),y_train_QLD[0].reshape(1,1),net_QLD.objectiveFunction,-0.6,0.6,dim ,500)
+        net_QLD.cso(100,X_train_QLD[0].reshape(46,1),y_train_QLD[0].reshape(1,1),net_QLD.multiObjectiveFunction,-0.6,0.6,dim ,500)
         net_QLD.set_weight_bias(np.array(net_QLD.get_Gbest()))
         
         fname = "results_QLD_" + str(i)
@@ -367,15 +315,15 @@ if __name__ == "__main__":
     training_cost_list_SA = []
     training_accuracy_list_SA = [] 
     
+    i = 1
     print("SA:")    
     for train_index, test_index in tscv.split(X_SA):
-        i = 1
         X_train_SA, X_test_SA = X_SA[train_index], X_SA[test_index]
         y_train_SA, y_test_SA = y_SA[train_index], y_SA[test_index]
         
-        net_SA = nt.Network([46,10,1], nt.Activation.sigmoid, nt.QuadraticCost)
+        net_SA = nt.Network([46,10,1], nt.Activation.relu, nt.QuadraticCost)
         dim = sum(w.size + b.size for w,b in zip(net_SA.weights,net_SA.biases))
-        net_SA.cso(100,X_train_SA[0].reshape(46,1),y_train_SA[0].reshape(1,1),net_SA.objectiveFunction,-0.6,0.6,dim ,500)
+        net_SA.cso(100,X_train_SA[0].reshape(46,1),y_train_SA[0].reshape(1,1),net_SA.multiObjectiveFunction,-0.6,0.6,dim ,500)
         net_SA.set_weight_bias(np.array(net_SA.get_Gbest()))
         
         fname = "results_SA_" + str(i)
@@ -408,21 +356,20 @@ if __name__ == "__main__":
                    training_accuracy_xmin = 0)
         i = i+1
 
-
     evaluation_cost_list_TAS = []
     evaluation_accuracy_list_TAS = []
     training_cost_list_TAS = []
     training_accuracy_list_TAS = []
         
+    i = 1
     print("TAS:")
     for train_index, test_index in tscv.split(X_TAS):
-        i = 1
         X_train_TAS, X_test_TAS = X_TAS[train_index], X_TAS[test_index]
         y_train_TAS, y_test_TAS = y_TAS[train_index], y_TAS[test_index]
         
-        net_TAS = nt.Network([46,10,1], nt.Activation.sigmoid, nt.QuadraticCost)
+        net_TAS = nt.Network([46,10,1], nt.Activation.relu, nt.QuadraticCost)
         dim = sum(w.size + b.size for w,b in zip(net_TAS.weights,net_TAS.biases))
-        net_TAS.cso(100,X_train_TAS[0].reshape(46,1),y_train_TAS[0].reshape(1,1),net_TAS.objectiveFunction,-0.6,0.6,dim ,500)
+        net_TAS.cso(100,X_train_TAS[0].reshape(46,1),y_train_TAS[0].reshape(1,1),net_TAS.multiObjectiveFunction,-0.6,0.6,dim ,500)
         net_TAS.set_weight_bias(np.array(net_TAS.get_Gbest()))
         
         fname = "results_TAS_" + str(i)
@@ -460,16 +407,16 @@ if __name__ == "__main__":
     evaluation_accuracy_list_VIC = []
     training_cost_list_VIC = []
     training_accuracy_list_VIC = []
-        
+       
+    i = 1
     print("VIC:")
     for train_index, test_index in tscv.split(X_VIC):
-        i = 1
         X_train_VIC, X_test_VIC = X_VIC[train_index], X_VIC[test_index]
         y_train_VIC, y_test_VIC = y_VIC[train_index], y_VIC[test_index]
         
-        net_VIC = nt.Network([46,10,1], nt.Activation.sigmoid, nt.QuadraticCost)
+        net_VIC = nt.Network([46,10,1], nt.Activation.relu, nt.QuadraticCost)
         dim = sum(w.size + b.size for w,b in zip(net_VIC.weights,net_VIC.biases))
-        net_VIC.cso(100,X_train_VIC[0].reshape(46,1),y_train_VIC[0].reshape(1,1),net_VIC.objectiveFunction,-0.6,0.6,dim ,500)
+        net_VIC.cso(100,X_train_VIC[0].reshape(46,1),y_train_VIC[0].reshape(1,1),net_VIC.multiObjectiveFunction,-0.6,0.6,dim ,500)
         net_VIC.set_weight_bias(np.array(net_VIC.get_Gbest()))
         
         fname = "results_VIC_" + str(i)
@@ -501,9 +448,6 @@ if __name__ == "__main__":
                    test_cost_xmin = 0, 
                    training_accuracy_xmin = 0) 
         i = i + 1
-
-    #eemd = EEMD()
-    #eIMFs_NSW = eemd(df['NSW'].iloc[:,0].values)
 
 
 
