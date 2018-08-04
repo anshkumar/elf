@@ -63,6 +63,7 @@ class Network(intelligence.sw):
         self.default_weight_initializer()
         self.cost = cost
         self.activate = activate
+        self.dim = sum(x*(y+1) for x,y in zip(self.sizes[1:], self.sizes[:-1]))
 #        
 #        if(backprop == False):
 #            self.x = np.array([])
@@ -105,7 +106,8 @@ class Network(intelligence.sw):
             monitor_evaluation_cost = False,
             monitor_evaluation_accuracy = False,
             monitor_training_cost = False,
-            monitor_training_accuracy = False):
+            monitor_training_accuracy = False,
+            output2D = False):
    
         evaluation_cost, evaluation_accuracy = [], []
         training_cost, training_accuracy = [], []  
@@ -116,28 +118,31 @@ class Network(intelligence.sw):
             for j in range(0, int(n_train/mini_batch_size)):
                 #taking transpose below in very much important
                 X = train_x[:,j*mini_batch_size:(j+1)*mini_batch_size]
-                y = train_y[j*mini_batch_size:(j+1)*mini_batch_size]
-                self.update_mini_batch(X, y, mini_batch_size, eta, lmbda, train_y.shape[0])
+                if output2D:
+                    y = train_y[:, j*mini_batch_size:(j+1)*mini_batch_size]
+                else:
+                    y = train_y[j*mini_batch_size:(j+1)*mini_batch_size]
+                self.update_mini_batch(X, y, mini_batch_size, eta, lmbda, train_x.shape[1])
                                
             if i % 100 == 0:
                 print("Epochs {0}".format(i))
             if monitor_training_cost:
-                cost = self.total_cost(train_x, train_y, lmbda)
+                cost = self.total_cost(train_x, train_y, lmbda, output2D)
                 training_cost.append(cost)
                 if i % 100 == 0:
                     print("Cost on training data: {1}".format(i, cost))
             if monitor_training_accuracy:
-                accuracy = self.accuracy(train_x, train_y)
+                accuracy = self.accuracy(train_x, train_y, output2D)
                 training_accuracy.append(accuracy)
                 if i % 100 == 0:
                     print("MAPE on training data: {0}".format(accuracy))
             if monitor_evaluation_cost:
-                cost = self.total_cost(evaluation_x, evaluation_y, lmbda)
+                cost = self.total_cost(evaluation_x, evaluation_y, lmbda, output2D)
                 evaluation_cost.append(cost)
                 if i % 100 == 0:
                     print("Cost on evaluation data: {1}".format(i, cost))
             if monitor_evaluation_accuracy:
-                accuracy = self.accuracy(evaluation_x, evaluation_y)
+                accuracy = self.accuracy(evaluation_x, evaluation_y, output2D)
                 evaluation_accuracy.append(accuracy)
                 if i % 100 == 0:
                     print("MAPE on evaluation data: {0}".format(accuracy)) 
@@ -200,19 +205,30 @@ class Network(intelligence.sw):
     def mean_absolute_percentage_error(self, y_true, y_pred):
         return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
     
-    def accuracy(self, X, Y):
-        results = np.zeros(X.shape[1])
-        for i in range(0, X.shape[1]):
-            x = X[:, i]
-            x = x.reshape((x.shape[0], 1))    #Very much important           
-            results[i] = self.feedforward(x).item(0)
-        return self.mean_absolute_percentage_error(Y, results)
+    def accuracy(self, X, Y, output2D = False):
+        if not output2D:
+            results = np.zeros(X.shape[1])
+            for i in range(0, X.shape[1]):
+                x = X[:, i]
+                x = x.reshape((x.shape[0], 1))    #Very much important           
+                results[i] = self.feedforward(x).item(0)
+            return self.mean_absolute_percentage_error(Y, results)
+        else:
+            results = []
+            for i in range(0, X.shape[1]):
+                x = X[:, i]
+                x = x.reshape((x.shape[0], 1))    #Very much important           
+                results.append(self.feedforward(x))
+            return self.mean_absolute_percentage_error(Y, np.hstack(results))
         
-    def total_cost(self, X, Y, lmbda, convert = False):
+    def total_cost(self, X, Y, lmbda, output2D = False):
         cost = 0.0
-        for j in range(0, int(Y.shape[0])):
+        for j in range(0, int(X.shape[1])):
             x = X[:, j]
-            y = Y[j]
+            if output2D:
+                y = Y[:,j]
+            else:
+                y = Y[j]
             x = x.reshape((x.shape[0], 1))    #Very much important   
             a = self.feedforward(x)
             cost += self.cost.fn(a,y)/Y.shape[0]

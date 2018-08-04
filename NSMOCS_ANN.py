@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import swarm as sm
+from math import sqrt
 
 #State and year to use for training and testing
 #state = {0: 'NSW', 1: 'QLD', 2: 'SA', 3: 'TAS', 4: 'VIC'}
@@ -67,6 +68,13 @@ def loadData5Folds():
     TS_TAS = np.array(df['TAS'])
     TS_VIC = np.array(df['VIC'])
       
+    #Normalizing the dataset
+    TS_NSW = TS_NSW / np.linalg.norm(TS_NSW)
+    TS_QLD = TS_QLD / np.linalg.norm(TS_QLD)
+    TS_SA = TS_SA / np.linalg.norm(TS_SA)
+    TS_TAS = TS_TAS / np.linalg.norm(TS_TAS)
+    TS_VIC = TS_VIC / np.linalg.norm(TS_VIC)
+
     """ Making the dataset size divisible by num_period """
     TS_NSW = TS_NSW[:(len(TS_NSW) -(len(TS_NSW) % set_size))] 
     TS_QLD = TS_QLD[:(len(TS_QLD)- (len(TS_QLD) % set_size))]
@@ -497,11 +505,11 @@ def loadKernelBias5Fold(st):
 def tensorGraph5Fold(initState = 'NSW'):
     weights_obj, biases_obj = loadKernelBias5Fold(initState)
     
-    weights = [w for w in weights_obj]
-    biases = [b for b in biases_obj]
+    weights = [tf.convert_to_tensor(w, dtype=tf.float32) for w in weights_obj]
+    biases = [tf.convert_to_tensor(b, dtype=tf.float32) for b in biases_obj]
     
     #RNN designning
-    tf.reset_default_graph()
+    #tf.reset_default_graph()
     
     inputs = x_size	#input vector size
     output = y_size	#output vector size
@@ -510,14 +518,16 @@ def tensorGraph5Fold(initState = 'NSW'):
     x = tf.placeholder(tf.float32, [inputs, None])
     y = tf.placeholder(tf.float32, [output, None])
 
+    #L2 regulizer
+    regularizer = tf.contrib.layers.l2_regularizer(scale=0.2)
     weights = {
-        'hidden': tf.Variable(tf.cast(weights[0], tf.float32)),
-        'output': tf.Variable(tf.cast(weights[1], tf.float32))
+        'hidden': tf.get_variable("w_hidden", initializer = weights[0], regularizer=regularizer),
+        'output': tf.get_variable("w_output", initializer = weights[1], regularizer=regularizer)
     }
     
     biases = {
-        'hidden': tf.Variable(tf.cast(biases[0],tf.float32)),
-        'output': tf.Variable(tf.cast(biases[1],tf.float32))
+        'hidden': tf.get_variable("b_hidden", initializer = biases[0]),
+        'output': tf.get_variable("b_output", initializer = biases[1])
     }
     
     hidden_layer = tf.add(tf.matmul(weights['hidden'], x), biases['hidden'])
@@ -529,15 +539,20 @@ def tensorGraph5Fold(initState = 'NSW'):
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)          #gradient descent method
     training_op = optimizer.minimize(loss)          #train the result of the application of the cost_function                                 
     
+    #L2 regulizer
+    reg_variables = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+    reg_term = tf.contrib.layers.apply_regularization(regularizer, reg_variables)
+    loss += reg_term
+    
     init = tf.global_variables_initializer()           #initialize all the variables
-    epochs = 2000     #number of iterations or training cycles, includes both the FeedFoward and Backpropogation
+    epochs = 2500     #number of iterations or training cycles, includes both the FeedFoward and Backpropogation
     
     pred = {'NSW': [], 'QLD': [], 'SA': [], 'TAS': [], 'VIC': []}
     y_pred = {1: pred, 2: pred, 3: pred, 4: pred, 5: pred}
     
     print("Training the ANN...")
     for st in state.values():
-        for fold in np.arange(1,6):
+        for fold in np.arange(1,2):
             print("State: ", st, end='\n')
             print("Fold : ", fold)
             
@@ -552,10 +567,15 @@ def tensorGraph5Fold(initState = 'NSW'):
                     cost_training.append(loss.eval(feed_dict={x: x_batches_train_fold[fold][st], y: y_batches_train_fold[fold][st]}))
                     cost_test.append(loss.eval(feed_dict={x: x_batches_validation_fold[fold][st], y: y_batches_validation_fold[fold][st]}))
                     
+                    #MAPE Error
                     pred = sess.run(output_layer, feed_dict={x: x_batches_train_fold[fold][st]})
                     error_train.append(mean_absolute_percentage_error(y_batches_train_fold[fold][st],pred))
                     pred = sess.run(output_layer, feed_dict={x: x_batches_validation_fold[fold][st]})
                     error_test.append(mean_absolute_percentage_error(y_batches_validation_fold[fold][st],pred))
+                    
+                    #RMSE
+#                    error_train.append(sqrt(cost_training[-1]))
+#                    error_test.append(sqrt(cost_test[-1]))
                     if ep % 1000 == 0:
                         print("Epoch: ", ep)
                 print("Cost for state ", st)
