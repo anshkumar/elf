@@ -22,7 +22,6 @@ import network as nt
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn import preprocessing
 from sklearn.model_selection import TimeSeriesSplit
 from os import path
 
@@ -30,19 +29,29 @@ def make_plots(filename, num_epochs,
                training_cost_xmin=200, 
                test_accuracy_xmin=200, 
                test_cost_xmin=0, 
-               training_accuracy_xmin=0):
+               training_accuracy_xmin=0,
+               plt_training_cost = False,
+               plt_training_accuracy = False,
+               plt_test_cost = False,
+               plt_test_accuracy = True,
+               plt_overlay = False):
     """Load the results from ``filename``, and generate the corresponding
     plots. """
     f = open(filename, "r")
-    test_cost, test_accuracy, training_cost, training_accuracy \
-        = json.load(f)
+    test_cost, test_mape, test_rmse, test_mae, training_cost, training_mape, \
+        training_rmse, training_mae = json.load(f)
     f.close()
-    plot_training_cost(training_cost, num_epochs, training_cost_xmin)
-    plot_test_accuracy(test_accuracy, num_epochs, test_accuracy_xmin)
-    plot_test_cost(test_cost, num_epochs, test_cost_xmin)
-    plot_training_accuracy(training_accuracy, num_epochs, 
-                           training_accuracy_xmin)
-    plot_overlay(test_accuracy, training_accuracy, num_epochs,
+    if plt_training_cost:
+        plot_training_cost(training_cost, num_epochs, training_cost_xmin)
+    if plt_test_accuracy:
+        plot_test_accuracy(test_mape, num_epochs, test_accuracy_xmin)
+    if plt_test_cost:
+        plot_test_cost(test_cost, num_epochs, test_cost_xmin)
+    if plt_training_accuracy:
+        plot_training_accuracy(training_mape, num_epochs, 
+                               training_accuracy_xmin)
+    if plt_overlay:
+        plot_overlay(test_mape, training_mape, num_epochs,
                  min(test_accuracy_xmin, training_accuracy_xmin))
 
 def plot_training_cost(training_cost, num_epochs, training_cost_xmin):
@@ -115,7 +124,7 @@ def plot_overlay(test_accuracy, training_accuracy, num_epochs, xmin):
     plt.legend(loc="lower right")
     plt.show()
 
-def timeSeriesSplit():
+def timeSeriesSplit(cso = False):
     state = {0: 'NSW', 1: 'QLD', 2: 'SA', 3: 'TAS', 4: 'VIC'}
     year = {0: '2015', 1: '2016', 2: '2017'}
     
@@ -160,6 +169,8 @@ def timeSeriesSplit():
     # the length of the sequnce for predicting the future value
     sequence_length = 84
     x_size = 36
+    hidden = 10
+    y_size = 48
     
     # normalizing
     matrix_load_NSW = list_hourly_load_NSW / np.linalg.norm(list_hourly_load_NSW)
@@ -195,11 +206,11 @@ def timeSeriesSplit():
     X_VIC = matrix_load_VIC[:, :x_size]
     
     # the last column is the true value to compute the mean-squared-error loss
-    y_NSW = matrix_load_NSW[:, 36:]
-    y_QLD = matrix_load_QLD[:, 36:]
-    y_SA = matrix_load_SA[:, 36:]
-    y_TAS = matrix_load_TAS[:, 36:]
-    y_VIC = matrix_load_VIC[:, 36:]
+    y_NSW = matrix_load_NSW[:, x_size:]
+    y_QLD = matrix_load_QLD[:, x_size:]
+    y_SA = matrix_load_SA[:, x_size:]
+    y_TAS = matrix_load_TAS[:, x_size:]
+    y_VIC = matrix_load_VIC[:, x_size:]
     
     tscv = TimeSeriesSplit(n_splits=5)
     
@@ -213,20 +224,27 @@ def timeSeriesSplit():
             X_train, X_test = X[st][train_index], X[st][test_index]
             y_train, y_test = y[st][train_index], y[st][test_index]
             
-            fname = "kernelBiasTimeSeries" + st + ".npy"
-            net_NSW = nt.Network([36,10,48], nt.Activation.tanh, nt.QuadraticCost)
-            if not path.exists(fname):
-                print("Weights and biases initialization for state ",st, " in progress...")
-                net_NSW.cso(100,X_train[0].reshape(36,1),y_train[0].reshape(48,1),
-                            net_NSW.multiObjectiveFunction,-0.6,0.6,net_NSW.dim ,500)
-                net_NSW.set_weight_bias(np.array(net_NSW.get_Gbest()))
-                np.save(fname, np.array(net_NSW.get_Gbest()))
-            net_NSW.set_weight_bias(np.load(fname))
-            fname = "results_" + st + "_TS_" + str(i)
-            num_epochs = 1000
+            print("Train and validation from state ", st, " split ", i)
+            net = nt.Network([x_size, hidden, y_size], nt.Activation.tanh, nt.QuadraticCost)
+            if cso:
+                fname = "kernelBiasTimeSeries" + st + ".npy"
+                if not path.exists(fname):
+                    print("Weights and biases initialization for state ",st, " in progress...")
+                    randInt = np.random.randint(X_train.shape[0])
+                    net.cso(100,X_train[randInt].reshape(x_size,1),y_train[randInt].reshape(y_size,1),
+                                net.multiObjectiveFunction,-0.6,0.6,net.dim ,100)
+                    net.set_weight_bias(np.array(net.get_Gbest()))
+                    np.save(fname, np.array(net.get_Gbest()))
+                net.set_weight_bias(np.load(fname))
+
+            if cso:
+                fname = "results_" + st + "_TS_" + str(i) + "CSO"
+            else:
+                fname = "results_" + st + "_TS_" + str(i) + "GD"
+            num_epochs = 1500
             lmbda = 2
             
-            evaluation_cost, evaluation_accuracy, training_cost, training_accuracy = net_NSW.SGD(
+            evaluation_cost, eval_mape, eval_rmse, eval_mae, training_cost, training_mape, training_rmse, training_mae = net.SGD(
                     X_train.transpose(),y_train.transpose(), num_epochs, 
                     10, 0.01, 
                     X_test.transpose(), y_test.transpose(), 
@@ -237,17 +255,17 @@ def timeSeriesSplit():
                     output2D = True)
             
             f = open(fname, "w")
-            json.dump([evaluation_cost, evaluation_accuracy, training_cost, training_accuracy], f)
+            json.dump([evaluation_cost, eval_mape, eval_rmse, eval_mae, training_cost, training_mape, training_rmse, training_mae], f)
             f.close()
                 
-            make_plots(fname, num_epochs,
-                       training_cost_xmin = 0,
-                       test_accuracy_xmin = 0,
-                       test_cost_xmin = 0, 
-                       training_accuracy_xmin = 0)
+#            make_plots(fname, num_epochs,
+#                       training_cost_xmin = 0,
+#                       test_accuracy_xmin = 0,
+#                       test_cost_xmin = 0, 
+#                       training_accuracy_xmin = 0)
             i = i+1
 
-def fiveFoldCrossValidation():
+def fiveFoldCrossValidation(cso = False):
     #State and year to use for training and testing
     state = {0: 'NSW', 1: 'QLD', 2: 'SA', 3: 'TAS', 4: 'VIC'}
 #    state = {0: 'NSW'}
@@ -453,25 +471,30 @@ def fiveFoldCrossValidation():
     for st in state.values():
         for fold in np.arange(1,6):
             print("Train and validation from state ", st, " fold ", fold)
-            fname = "kernelBias5Fold" + st + ".npy"
             net = nt.Network([x_size, hidden, y_size], nt.Activation.tanh, nt.QuadraticCost)
-            if not path.exists(fname):
-                print("Weights and biases initialization for state ",st ," in progress...")
-                net.cso(100,x_batches[st][:,0].reshape(x_size,1),
-                                y_batches[st][:,0].reshape(y_size,1),
-                                net.multiObjectiveFunction,-0.6,0.6,net.dim ,100)
-                
-                net.set_weight_bias(np.array(net.get_Gbest()))
-                np.save(fname, np.array(net.get_Gbest()))
-        
-            net.set_weight_bias(np.load(fname))
+            if cso:
+                fname = "kernelBias5Fold" + st + ".npy"
+                if not path.exists(fname):
+                    print("Weights and biases initialization for state ",st ," in progress...")
+                    randInt = np.random.randint(x_batches[st].shape[1])
+                    net.cso(100,x_batches[st][:, randInt].reshape(x_size,1),
+                                    y_batches[st][:, randInt].reshape(y_size,1),
+                                    net.multiObjectiveFunction,-0.6,0.6,net.dim ,100)
+                    
+                    net.set_weight_bias(np.array(net.get_Gbest()))
+                    np.save(fname, np.array(net.get_Gbest()))
             
-            num_epochs = 1000
+                net.set_weight_bias(np.load(fname))
+            
+            num_epochs = 1500
             lmbda = 2
             
-            fname = "results_"+ st + "_Fold" + str(fold)
+            if cso:
+                fname = "results_"+ st + "_5Fold_" + str(fold) + "CSO"
+            else:
+                fname = "results_"+ st + "_5Fold_" + str(fold) + "GD" #GD: Gaussian Distribution
             
-            evaluation_cost, evaluation_accuracy, training_cost, training_accuracy = net.SGD(
+            evaluation_cost, eval_mape, eval_rmse, eval_mae, training_cost, training_mape, training_rmse, training_mae = net.SGD(
                     x_batches_train_fold[fold][st],y_batches_train_fold[fold][st],
                     num_epochs, 10, 0.01, x_batches_validation_fold[fold][st],
                     y_batches_validation_fold[fold][st],
@@ -482,13 +505,13 @@ def fiveFoldCrossValidation():
                     output2D = True)
             
             f = open(fname, "w")
-            json.dump([evaluation_cost, evaluation_accuracy, training_cost, training_accuracy], f)
+            json.dump([evaluation_cost, eval_mape, eval_rmse, eval_mae, training_cost, training_mape, training_rmse, training_mae], f)
             f.close()
             
-            make_plots(fname, num_epochs,
-                       training_cost_xmin = 0,
-                       test_accuracy_xmin = 0,
-                       test_cost_xmin = 0, 
-                       training_accuracy_xmin = 0)
+#            make_plots(fname, num_epochs,
+#                       training_cost_xmin = 0,
+#                       test_accuracy_xmin = 0,
+#                       test_cost_xmin = 0, 
+#                       training_accuracy_xmin = 0)
             
        

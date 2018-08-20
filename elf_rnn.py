@@ -62,8 +62,8 @@ TS_SA_test = np.array(df_test['SA'])
 TS_TAS_test = np.array(df_test['TAS'])
 TS_VIC_test = np.array(df_test['VIC'])
 
-num_periods = 12
-f_horizon = 24  #forecast horizon
+num_periods = 48
+f_horizon = 48  #forecast horizon
 
 """ Making the dataset size divisible by num_period """
 x_data_nsw = TS_NSW[:(len(TS_NSW) - f_horizon -((len(TS_NSW)-f_horizon) % num_periods))] 

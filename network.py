@@ -6,7 +6,6 @@ Created on Sun Feb 25 15:16:25 2018
 """
 
 import numpy as np
-#from PyEMD import EEMD
 from math import gamma, pi, sin, sqrt
 from random import normalvariate, randint, random
 
@@ -22,9 +21,22 @@ class QuadraticCost(object):
         if(activation == Activation.sigmoid):
             return (a-y)*Activation.sigmoid_prime(z)
         elif(activation == Activation.tanh):
-            return (a-y)*Activation.sigmoid_prime(z)    # TODO: update for tanh
+            return (a-y)*Activation.tanh_prime(z)
         elif(activation == Activation.relu):
             return (a-y)*(z > 0)
+        
+class Accuracy(object):
+    @staticmethod
+    def mape(y_true, y_pred):
+        return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+    
+    @staticmethod
+    def rmse(y_true, y_pred):
+        return np.sqrt(np.mean(np.square(y_true - y_pred))) 
+ 
+    @staticmethod
+    def mae(y_true, y_pred):
+        return np.mean(np.abs(y_true - y_pred))
 
 class CrossEntropyCost(object):
     @staticmethod
@@ -51,6 +63,10 @@ class Activation(object):
     @staticmethod        
     def tanh(z):
         return 2*Activation.sigmoid(2*z) - 1
+    
+    @staticmethod        
+    def tanh_prime(z):
+        return 1 - (Activation.tanh(z))**2
         
     @staticmethod
     def relu(z):
@@ -64,14 +80,7 @@ class Network(intelligence.sw):
         self.cost = cost
         self.activate = activate
         self.dim = sum(x*(y+1) for x,y in zip(self.sizes[1:], self.sizes[:-1]))
-#        
-#        if(backprop == False):
-#            self.x = np.array([])
-#            for w in self.weights:
-#                self.x = np.insert(self.x, self.x.size, w.reshape(w.size))
-#            for b in self.biases:
-#                self.x = np.insert(self.x, self.x.size, b.reshape(b.size))
-                
+               
     def default_weight_initializer(self):
         self.biases = [np.random.randn(x,1) for x in self.sizes[1:]]
         self.weights = [np.random.randn(x,y)/np.sqrt(x) 
@@ -109,11 +118,9 @@ class Network(intelligence.sw):
             monitor_training_accuracy = False,
             output2D = False):
    
-        evaluation_cost, evaluation_accuracy = [], []
-        training_cost, training_accuracy = [], []  
+        evaluation_cost, eval_mape, eval_rmse, eval_mae = [], [] , [] , []
+        training_cost, training_mape, training_rmse, training_mae = [], [] , [] , []
         n_train = train_x.shape[1]
-        if evaluation_x.size: n_eval = evaluation_x.shape[1]
-#        print("biases ", [b.shape for b in self.biases])
         for i in range(epochs): 
             for j in range(0, int(n_train/mini_batch_size)):
                 #taking transpose below in very much important
@@ -132,29 +139,47 @@ class Network(intelligence.sw):
                 if i % 100 == 0:
                     print("Cost on training data: {1}".format(i, cost))
             if monitor_training_accuracy:
-                accuracy = self.accuracy(train_x, train_y, output2D)
-                training_accuracy.append(accuracy)
+                accuracy = self.accuracy(train_x, train_y, output2D, Accuracy.mape)
+                training_mape.append(accuracy)
                 if i % 100 == 0:
                     print("MAPE on training data: {0}".format(accuracy))
+                    
+                accuracy = self.accuracy(train_x, train_y, output2D, Accuracy.rmse)
+                training_rmse.append(accuracy)
+                if i % 100 == 0:
+                    print("RMSE on training data: {0}".format(accuracy))
+                    
+                accuracy = self.accuracy(train_x, train_y, output2D, Accuracy.mae)
+                training_mae.append(accuracy)
+                if i % 100 == 0:
+                    print("MAE on training data: {0}".format(accuracy))
             if monitor_evaluation_cost:
                 cost = self.total_cost(evaluation_x, evaluation_y, lmbda, output2D)
                 evaluation_cost.append(cost)
                 if i % 100 == 0:
                     print("Cost on evaluation data: {1}".format(i, cost))
             if monitor_evaluation_accuracy:
-                accuracy = self.accuracy(evaluation_x, evaluation_y, output2D)
-                evaluation_accuracy.append(accuracy)
+                accuracy = self.accuracy(evaluation_x, evaluation_y, output2D, Accuracy.mape)
+                eval_mape.append(accuracy)
                 if i % 100 == 0:
                     print("MAPE on evaluation data: {0}".format(accuracy)) 
-        return evaluation_cost, evaluation_accuracy, training_cost, training_accuracy
+                    
+                accuracy = self.accuracy(evaluation_x, evaluation_y, output2D, Accuracy.rmse)
+                eval_rmse.append(accuracy)
+                if i % 100 == 0:
+                    print("RMSE on evaluation data: {0}".format(accuracy)) 
+                    
+                accuracy = self.accuracy(evaluation_x, evaluation_y, output2D, Accuracy.mae)
+                eval_mae.append(accuracy)
+                if i % 100 == 0:
+                    print("MAE on evaluation data: {0}".format(accuracy)) 
+        return evaluation_cost, eval_mape, eval_rmse, eval_mae, training_cost, training_mape, training_rmse, training_mae
     
     def update_mini_batch(self, X, y, mini_batch_size, eta, lmbda, n):
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
-#        print("nabla_b", [b.shape for b in nabla_b])
         
         delta_nabla_b, delta_nabla_w = self.backprop(X, y, mini_batch_size)
-#        delta_nabla_w = self.backprop(X, y, mini_batch_size)
         nabla_b = [nb+dnb for nb,dnb in zip(nabla_b, delta_nabla_b)]
         nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
             
@@ -165,7 +190,6 @@ class Network(intelligence.sw):
 #       L2 regulrization        
 #        self.weights = [(1 - eta*(lmbda/n))*w - (eta/mini_batch_size)*nw 
 #                            for w,nw in zip(self.weights, nabla_w)]
-
 
 #       L1 regulrization
         self.weights = [(w - eta*(lmbda/n)*np.sign(w)) - (eta/mini_batch_size)*nw 
@@ -178,15 +202,10 @@ class Network(intelligence.sw):
                         for x in self.sizes[1:]]
         delta_nabla_w = [np.zeros(w.shape) for w in self.weights]
         
-#        for w in self.weights:
         for b,w in zip(self.biases, self.weights):
             z.append(np.matmul(w,activations[-1]) + b)
-#            z.append(np.matmul(w,activations[-1]))
             activations.append((self.activate)(z[-1]))
-
-#        Quadratic cost function    
-#        delta_nabla_b[-1] = (activations[-1] - y)*sigmoid_prime(z[-1])
-            
+           
         delta[-1] = (self.cost).delta(self.activate, z[-1], activations[-1], y)
         delta_nabla_w[-1] = np.dot(delta[-1], activations[-2].transpose())
                         
@@ -200,26 +219,22 @@ class Network(intelligence.sw):
         delta_nabla_b = [b.sum(axis = 1).reshape((b.shape[0], 1)) 
                         for b in delta]
         return (delta_nabla_b, delta_nabla_w)
-#        return delta_nabla_w
-     
-    def mean_absolute_percentage_error(self, y_true, y_pred):
-        return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
-    
-    def accuracy(self, X, Y, output2D = False):
+        
+    def accuracy(self, X, Y, output2D = False, AccFunc = Accuracy.mape):
         if not output2D:
             results = np.zeros(X.shape[1])
             for i in range(0, X.shape[1]):
                 x = X[:, i]
                 x = x.reshape((x.shape[0], 1))    #Very much important           
                 results[i] = self.feedforward(x).item(0)
-            return self.mean_absolute_percentage_error(Y, results)
+            return AccFunc(Y, results)
         else:
             results = []
             for i in range(0, X.shape[1]):
                 x = X[:, i]
                 x = x.reshape((x.shape[0], 1))    #Very much important           
                 results.append(self.feedforward(x))
-            return self.mean_absolute_percentage_error(Y, np.hstack(results))
+            return AccFunc(Y, np.hstack(results))
         
     def total_cost(self, X, Y, lmbda, output2D = False):
         cost = 0.0
@@ -238,11 +253,6 @@ class Network(intelligence.sw):
     """
     Cuckoo Search Optimization
     """
-    
-#    def objectiveFunction(self,x):
-#        self.set_weight_bias(x)
-#        y_prime = self.feedforward(self.input)
-#        return sum(abs(u-v) for u,v in zip(y_prime, self.output))/x.shape[0]
 
     def multiObjectiveFunction(self,x):
         self.set_weight_bias(x)
@@ -346,34 +356,3 @@ class Network(intelligence.sw):
 
         return self.__Nests
     
-def vectorized_result(j):
-    e = np.zeros((10, 1))
-    e[j] = 1.0
-    return e
-
-
-    """
-    Data pre-processing
-    """
-
-def estimated_autocorrelation(x):
-    """
-    http://stackoverflow.com/q/14297012/190597
-    http://en.wikipedia.org/wiki/Autocorrelation#Estimation
-    """
-    n = len(x)
-    variance = x.var()
-    x = x-x.mean()
-    r = np.correlate(x, x, mode = 'full')[-n:]
-    assert np.allclose(r, np.array([(x[:n-k]*x[-(n-k):]).sum() for k in range(n)]))
-    result = r/(variance*(np.arange(n, 0, -1)))
-    return result
-
-# define a function to convert a vector of time series into a 2D matrix
-def convertSeriesToMatrix(vectorSeries, sequence_length):
-    matrix=[]
-    for i in range(len(vectorSeries)-sequence_length+1):
-        matrix.append(vectorSeries[i:i+sequence_length])
-    return matrix
-
-
